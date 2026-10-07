@@ -86,6 +86,38 @@
   .modal h2 { font-size: 30px; margin-bottom: 10px; }
   .modal p { font-size: 18px; margin: 6px 0; }
   .help { margin-top: 16px; background: rgba(255,248,231,0.9); border-radius: 12px; padding: 10px 16px; font-size: 14px; max-width: 480px; text-align: center; line-height: 1.6; }
+  .main { display: flex; gap: 20px; align-items: flex-start; justify-content: center; width: 100%; }
+  .rank-panel {
+    background: #fff8e7; border: 3px solid #6b4423; border-radius: 16px;
+    padding: 12px 14px; width: 210px; flex-shrink: 0;
+  }
+  .rank-panel h3 { text-align: center; font-size: 20px; margin-bottom: 8px; }
+  .rank-list { list-style: none; }
+  .rank-list li {
+    display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px;
+    border-radius: 8px; font-weight: 700; font-size: 15px;
+  }
+  .rank-list li:nth-child(odd) { background: #f3e6c8; }
+  .rank-list li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .rank-list li.me { background: #ffcc33; }
+  .rank-list li.empty { color: #a08a70; font-weight: 500; }
+  .goal {
+    margin-top: 10px; text-align: center; font-weight: 800; font-size: 15px;
+    background: #6b4423; color: #fff8e7; border-radius: 10px; padding: 8px; line-height: 1.4;
+  }
+  .goal b { color: #ffcc33; font-size: 18px; }
+  .entry { margin: 12px 0 4px; display: flex; gap: 8px; }
+  .entry input {
+    flex: 1; min-width: 0; font: inherit; font-size: 18px; font-weight: 700; padding: 8px 10px;
+    border: 3px solid #6b4423; border-radius: 12px; background: #fff;
+  }
+  .entry button { font-size: 17px; padding: 8px 14px; }
+  .modal .rank-list { margin-top: 10px; text-align: left; }
+  .modal .msg { font-size: 15px; color: #7a5a3a; }
+  @media (max-width: 720px) {
+    .main { flex-direction: column; align-items: center; }
+    .rank-panel { width: min(92vw, 480px); }
+  }
   .shake { animation: shake 0.3s; }
   @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 </style>
@@ -95,10 +127,17 @@
   <div class="hud">
     <div>점수: <span id="score">0</span></div>
     <div>시간: <span id="time">30</span>초</div>
-    <div>최고: <span id="best">0</span></div>
+    <div>콤보: <span id="combo">0</span></div>
   </div>
 
-  <div class="board" id="board"></div>
+  <div class="main">
+    <aside class="rank-panel">
+      <h3>🏆 TOP 5 <small id="rankDiff">(보통)</small></h3>
+      <ol class="rank-list" id="sideRank"></ol>
+      <div class="goal" id="goal"></div>
+    </aside>
+    <div class="board" id="board"></div>
+  </div>
 
   <div class="controls">
     <select id="difficulty">
@@ -120,6 +159,12 @@
       <p>점수: <b id="finalScore">0</b></p>
       <p>최대 콤보: <b id="finalCombo">0</b></p>
       <p id="newBest"></p>
+      <form class="entry" id="entryForm">
+        <input id="nameInput" maxlength="10" placeholder="이름 입력 (최대 10자)" autocomplete="off">
+        <button type="submit">등록</button>
+      </form>
+      <p class="msg" id="entryMsg"></p>
+      <ol class="rank-list" id="modalRank"></ol>
       <br>
       <button id="againBtn">다시 하기</button>
     </div>
@@ -138,19 +183,83 @@ const KEY_MAP = { '7': 0, '8': 1, '9': 2, '4': 3, '5': 4, '6': 5, '1': 6, '2': 7
 const board = document.getElementById('board');
 const scoreEl = document.getElementById('score');
 const timeEl = document.getElementById('time');
-const bestEl = document.getElementById('best');
+const comboEl = document.getElementById('combo');
 const startBtn = document.getElementById('startBtn');
 const diffSel = document.getElementById('difficulty');
 const overlay = document.getElementById('overlay');
+const sideRank = document.getElementById('sideRank');
+const modalRank = document.getElementById('modalRank');
+const goalEl = document.getElementById('goal');
+const entryForm = document.getElementById('entryForm');
+const nameInput = document.getElementById('nameInput');
+const entryMsg = document.getElementById('entryMsg');
+
+const RANK_SIZE = 5;
+const DIFF_NAMES = { easy: '쉬움', normal: '보통', hard: '어려움' };
 
 let holes = [];
 let score = 0, timeLeft = GAME_TIME, combo = 0, maxCombo = 0;
 let playing = false, timerId = null, spawnId = null;
 let level = LEVELS.normal;
+let lastEntryId = null;
 
-function bestKey() { return 'whack-best-' + diffSel.value; }
-function loadBest() {
-  try { bestEl.textContent = localStorage.getItem(bestKey()) || 0; } catch { bestEl.textContent = 0; }
+function rankKey() { return 'whack-rank-' + diffSel.value; }
+function getRanking() {
+  try { return JSON.parse(localStorage.getItem(rankKey())) || []; } catch { return []; }
+}
+function saveRanking(list) {
+  try { localStorage.setItem(rankKey(), JSON.stringify(list)); } catch {}
+}
+function qualifies(s) {
+  const list = getRanking();
+  return s > 0 && (list.length < RANK_SIZE || s > list[list.length - 1].score);
+}
+
+function renderRankList(el, list, highlightId) {
+  el.innerHTML = '';
+  const medals = ['🥇', '🥈', '🥉', '4', '5'];
+  for (let i = 0; i < RANK_SIZE; i++) {
+    const li = document.createElement('li');
+    const r = list[i];
+    const nm = document.createElement('span');
+    nm.className = 'nm';
+    const sc = document.createElement('span');
+    if (r) {
+      nm.textContent = `${medals[i]}. ${r.name}`;
+      sc.textContent = r.score + '점';
+      if (r.id === highlightId) li.classList.add('me');
+    } else {
+      li.classList.add('empty');
+      nm.textContent = `${medals[i]}. ---`;
+      sc.textContent = '';
+    }
+    li.append(nm, sc);
+    el.appendChild(li);
+  }
+}
+
+function renderSide() {
+  document.getElementById('rankDiff').textContent = `(${DIFF_NAMES[diffSel.value]})`;
+  renderRankList(sideRank, getRanking(), lastEntryId);
+  updateGoal();
+}
+
+function updateGoal() {
+  const list = getRanking();
+  if (!list.length) {
+    goalEl.innerHTML = '아직 기록이 없어요!<br>첫 1등의 주인공이 되세요';
+    return;
+  }
+  const top = list[0].score;
+  if (!playing) {
+    goalEl.innerHTML = `<b>${top}점</b> 넘으면 1등입니다!`;
+  } else if (score > top) {
+    goalEl.innerHTML = '🏆 현재 <b>1등</b> 페이스!';
+  } else {
+    const rank = list.filter(r => r.score >= score).length + 1;
+    const rankTxt = rank <= RANK_SIZE ? `현재 ${rank}등 페이스<br>` : '';
+    goalEl.innerHTML = `${rankTxt}1등까지 <b>${top - score + 1}점</b>!`;
+  }
 }
 
 for (let i = 0; i < 9; i++) {
@@ -187,7 +296,7 @@ function hide(h, missed) {
   clearTimeout(h.timeout);
   h.el.classList.remove('up');
   h.up = false;
-  if (missed && h.type !== 'bomb') combo = 0;
+  if (missed && h.type !== 'bomb') { combo = 0; comboEl.textContent = 0; }
 }
 
 function whack(i) {
@@ -205,6 +314,8 @@ function whack(i) {
   }
   score = Math.max(0, score + pts);
   scoreEl.textContent = score;
+  comboEl.textContent = combo;
+  updateGoal();
   h.el.classList.add('hit');
   showPop(h.el, (pts > 0 ? '+' : '') + pts + (combo >= 3 && pts > 0 ? ` (${combo}콤보)` : ''), color);
   clearTimeout(h.timeout);
@@ -223,10 +334,12 @@ function showPop(el, text, color) {
 function start() {
   level = LEVELS[diffSel.value];
   score = 0; combo = 0; maxCombo = 0; timeLeft = GAME_TIME;
-  scoreEl.textContent = 0; timeEl.textContent = timeLeft;
+  scoreEl.textContent = 0; comboEl.textContent = 0; timeEl.textContent = timeLeft;
   overlay.classList.remove('show');
   holes.forEach(h => hide(h, false));
   playing = true;
+  lastEntryId = null;
+  renderSide();
   startBtn.disabled = true; diffSel.disabled = true;
   timerId = setInterval(() => {
     timeLeft--;
@@ -243,25 +356,47 @@ function end() {
   startBtn.disabled = false; diffSel.disabled = false;
   document.getElementById('finalScore').textContent = score;
   document.getElementById('finalCombo').textContent = maxCombo;
-  const best = Number(bestEl.textContent);
+  const list = getRanking();
   const nb = document.getElementById('newBest');
-  if (score > best) {
-    try { localStorage.setItem(bestKey(), score); } catch {}
-    bestEl.textContent = score;
-    nb.textContent = '🎉 신기록!';
+  nb.textContent = score > 0 && (!list.length || score > list[0].score) ? '🎉 1등 신기록!' : '';
+  if (qualifies(score)) {
+    entryForm.style.display = '';
+    entryMsg.textContent = 'TOP 5 진입! 이름을 남겨주세요';
+    nameInput.value = '';
   } else {
-    nb.textContent = '';
+    entryForm.style.display = 'none';
+    entryMsg.textContent = list.length
+      ? `TOP 5에 들려면 ${list[list.length - 1].score + 1}점 이상 필요해요`
+      : '';
   }
+  renderRankList(modalRank, list, null);
+  updateGoal();
   overlay.classList.add('show');
+  if (qualifies(score)) nameInput.focus();
 }
+
+entryForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const name = nameInput.value.trim() || '익명';
+  lastEntryId = Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  const list = getRanking();
+  list.push({ id: lastEntryId, name, score, combo: maxCombo, date: new Date().toISOString() });
+  list.sort((a, b) => b.score - a.score);
+  saveRanking(list.slice(0, RANK_SIZE));
+  entryForm.style.display = 'none';
+  entryMsg.textContent = '등록 완료!';
+  renderRankList(modalRank, getRanking(), lastEntryId);
+  renderSide();
+});
 
 startBtn.addEventListener('click', start);
 document.getElementById('againBtn').addEventListener('click', start);
-diffSel.addEventListener('change', loadBest);
+diffSel.addEventListener('change', () => { lastEntryId = null; renderSide(); });
 document.addEventListener('keydown', e => {
+  if (e.target === nameInput) return;
   if (e.key in KEY_MAP) whack(KEY_MAP[e.key]);
 });
-loadBest();
+renderSide();
 </script>
 </body>
 </html>
