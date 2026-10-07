@@ -53,8 +53,44 @@
   .mole .nose { position: absolute; top: 42%; left: 50%; transform: translateX(-50%); width: 22%; height: 14%; background: #ff8fa3; border-radius: 50%; }
   .mole .tooth { position: absolute; top: 56%; left: 50%; transform: translateX(-50%); width: 14%; height: 10%; background: #fff; border: 2px solid #ccc; border-top: none; }
   .mole.gold .body { background: #f5c518; border-color: #b8860b; }
-  .mole.bomb .body { background: #333; border-color: #000; }
-  .mole.bomb .nose { background: #e33; }
+  .mole .tongue, .mole .tag, .mole .brow, .mole .trio { display: none; }
+  /* 메롱 두더지: 잡으면 안 되는 얄미운 녀석 */
+  .mole.tease .body { background: #a35bd1; border-color: #5e2486; }
+  .mole.tease .eye { background: none; }
+  .mole.tease .eye::before {
+    position: absolute; left: -40%; top: -45%; font-weight: 900; color: #1a0a24;
+    font-size: clamp(11px, 3.4vw, 20px);
+  }
+  .mole.tease .eye.l::before { content: ">"; }
+  .mole.tease .eye.r::before { content: "<"; }
+  .mole.tease .nose { background: #ff5ea8; }
+  .mole.tease .tooth { display: none; }
+  .mole.tease .tongue {
+    display: block; position: absolute; top: 57%; left: 50%; width: 24%; height: 28%;
+    background: #ff3d5e; border: 2px solid #a8102e; border-radius: 0 0 50% 50%;
+    transform: translateX(-35%) rotate(10deg); animation: wag 0.3s ease-in-out infinite alternate;
+  }
+  .mole.tease .tongue::after {
+    content: ""; position: absolute; left: 45%; top: 0; width: 2px; height: 55%; background: #a8102e;
+  }
+  @keyframes wag { to { transform: translateX(-65%) rotate(-10deg); } }
+  .mole.tease .tag {
+    display: block; position: absolute; top: -6%; right: -22%; background: #fff; color: #a8102e;
+    border: 2px solid #a8102e; border-radius: 10px; padding: 1px 6px; font-weight: 900;
+    font-size: clamp(9px, 2.6vw, 14px); white-space: nowrap; transform: rotate(12deg); z-index: 4;
+  }
+  /* 세쌍둥이 두더지 */
+  .mole.trio .body { display: none; }
+  .mole.trio .trio { display: flex; align-items: flex-end; width: 130%; height: 100%; gap: 2%; }
+  .trio .head {
+    flex: 1; height: 72%; position: relative; background: #a0672f; border: 3px solid #5a3a1a;
+    border-radius: 50% 50% 20% 20%; transition: transform 0.15s ease-in, filter 0.1s;
+  }
+  .trio .head:nth-child(2) { height: 92%; }
+  .trio .head .eye { top: 22%; width: 18%; height: 13%; }
+  .trio .head .eye.l { left: 22%; } .trio .head .eye.r { right: 22%; }
+  .trio .head .nose { top: 42%; width: 34%; height: 15%; }
+  .trio .head.hit { filter: brightness(1.6); transform: translateY(110%); }
   .hole.up .mole { bottom: 10%; }
   .hole.hit .mole .body { filter: brightness(1.6); }
   .hole.hit .mole .eye { background: none; }
@@ -118,6 +154,20 @@
     .main { flex-direction: column; align-items: center; }
     .rank-panel { width: min(92vw, 480px); }
   }
+  .congrats {
+    display: none; margin: 10px 0; padding: 12px; border-radius: 14px; line-height: 1.5;
+    background: linear-gradient(135deg, #ffe066, #ffb347); border: 3px solid #d4a000;
+    font-weight: 800; font-size: 16px; animation: bounceIn 0.6s cubic-bezier(.3,1.6,.5,1);
+  }
+  .congrats.show { display: block; }
+  .congrats .big { font-size: 20px; display: block; color: #8a3b00; }
+  .congrats b { color: #c2185b; }
+  @keyframes bounceIn { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .confetti {
+    position: fixed; top: -20px; width: 10px; height: 16px; z-index: 20; pointer-events: none;
+    animation: fall linear forwards;
+  }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
   .shake { animation: shake 0.3s; }
   @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 </style>
@@ -149,7 +199,8 @@
   </div>
 
   <div class="help">
-    🟤 두더지 <b>+10</b> · 🟡 황금 두더지 <b>+30</b> · ⚫ 폭탄 두더지 <b>-20</b><br>
+    🟤 두더지 <b>+10</b> · 🟡 황금 두더지 <b>+30</b> · 🟤🟤🟤 세쌍둥이 머리마다 <b>+10</b>, 셋 다 잡으면 <b>+20</b><br>
+    🟣 메롱 두더지는 절대 잡지 마세요! <b>-20</b><br>
     연속으로 잡으면 콤보 보너스! 키보드 숫자패드(1~9)로도 플레이할 수 있어요.
   </div>
 
@@ -158,7 +209,7 @@
       <h2>게임 종료!</h2>
       <p>점수: <b id="finalScore">0</b></p>
       <p>최대 콤보: <b id="finalCombo">0</b></p>
-      <p id="newBest"></p>
+      <div class="congrats" id="congrats"></div>
       <form class="entry" id="entryForm">
         <input id="nameInput" maxlength="10" placeholder="이름 입력 (최대 10자)" autocomplete="off">
         <button type="submit">등록</button>
@@ -265,10 +316,17 @@ function updateGoal() {
 for (let i = 0; i < 9; i++) {
   const hole = document.createElement('div');
   hole.className = 'hole';
-  hole.innerHTML = '<div class="mole"><div class="body"><div class="eye l"></div><div class="eye r"></div><div class="nose"></div><div class="tooth"></div></div></div>';
-  hole.addEventListener('pointerdown', () => whack(i));
+  const face = '<div class="eye l"></div><div class="eye r"></div><div class="nose"></div>';
+  hole.innerHTML = '<div class="mole">'
+    + '<div class="body">' + face + '<div class="tooth"></div><div class="tongue"></div><div class="tag">메롱~</div></div>'
+    + '<div class="trio">' + ('<div class="head">' + face + '</div>').repeat(3) + '</div>'
+    + '</div>';
+  hole.addEventListener('pointerdown', e => whack(i, e.target.closest('.head')));
   board.appendChild(hole);
-  holes.push({ el: hole, mole: hole.querySelector('.mole'), up: false, type: null, timeout: null });
+  holes.push({
+    el: hole, mole: hole.querySelector('.mole'), heads: [...hole.querySelectorAll('.head')],
+    up: false, type: null, timeout: null,
+  });
 }
 
 const rand = (a, b) => Math.random() * (b - a) + a;
@@ -280,13 +338,15 @@ function spawn() {
     const free = holes.filter(h => !h.up);
     const h = free[Math.floor(Math.random() * free.length)];
     const r = Math.random();
-    h.type = r < 0.1 ? 'gold' : r < 0.25 ? 'bomb' : 'normal';
+    h.type = r < 0.1 ? 'gold' : r < 0.25 ? 'tease' : r < 0.37 ? 'trio' : 'normal';
+    h.heads.forEach(hd => hd.classList.remove('hit'));
     h.mole.className = 'mole' + (h.type !== 'normal' ? ' ' + h.type : '');
     h.el.classList.remove('hit');
     h.el.classList.add('up');
     h.up = true;
     let upTime = rand(level.minUp, level.maxUp);
     if (h.type === 'gold') upTime *= 0.7;
+    if (h.type === 'trio') upTime *= 1.8;
     h.timeout = setTimeout(() => hide(h, true), upTime);
   }
   spawnId = setTimeout(spawn, rand(level.minGap, level.maxGap));
@@ -296,14 +356,15 @@ function hide(h, missed) {
   clearTimeout(h.timeout);
   h.el.classList.remove('up');
   h.up = false;
-  if (missed && h.type !== 'bomb') { combo = 0; comboEl.textContent = 0; }
+  if (missed && h.type !== 'tease') { combo = 0; comboEl.textContent = 0; }
 }
 
-function whack(i) {
+function whack(i, headEl) {
   const h = holes[i];
   if (!playing || !h.up || h.el.classList.contains('hit')) return;
+  if (h.type === 'trio') return whackTrio(h, headEl);
   let pts, color;
-  if (h.type === 'bomb') {
+  if (h.type === 'tease') {
     pts = -20; color = '#e33'; combo = 0;
     board.classList.remove('shake'); void board.offsetWidth; board.classList.add('shake');
   } else {
@@ -312,14 +373,38 @@ function whack(i) {
     pts = (h.type === 'gold' ? 30 : 10) + Math.floor(combo / 5) * 5;
     color = h.type === 'gold' ? '#d4a000' : '#2a7a1a';
   }
-  score = Math.max(0, score + pts);
-  scoreEl.textContent = score;
-  comboEl.textContent = combo;
-  updateGoal();
+  addScore(pts);
   h.el.classList.add('hit');
   showPop(h.el, (pts > 0 ? '+' : '') + pts + (combo >= 3 && pts > 0 ? ` (${combo}콤보)` : ''), color);
   clearTimeout(h.timeout);
   h.timeout = setTimeout(() => hide(h, false), 250);
+}
+
+// 세쌍둥이: 머리를 하나씩 잡는다. 키보드로 치면 남은 머리 중 왼쪽부터.
+function whackTrio(h, headEl) {
+  const head = headEl && !headEl.classList.contains('hit')
+    ? headEl : h.heads.find(hd => !hd.classList.contains('hit'));
+  if (!head) return;
+  head.classList.add('hit');
+  combo++;
+  maxCombo = Math.max(maxCombo, combo);
+  let pts = 10 + Math.floor(combo / 5) * 5;
+  const cleared = h.heads.every(hd => hd.classList.contains('hit'));
+  if (cleared) pts += 20;
+  addScore(pts);
+  showPop(h.el, cleared ? `+${pts} 트리오 클리어!` : `+${pts}`, cleared ? '#c2185b' : '#2a7a1a');
+  if (cleared) {
+    h.el.classList.add('hit');
+    clearTimeout(h.timeout);
+    h.timeout = setTimeout(() => hide(h, false), 250);
+  }
+}
+
+function addScore(pts) {
+  score = Math.max(0, score + pts);
+  scoreEl.textContent = score;
+  comboEl.textContent = combo;
+  updateGoal();
 }
 
 function showPop(el, text, color) {
@@ -357,8 +442,7 @@ function end() {
   document.getElementById('finalScore').textContent = score;
   document.getElementById('finalCombo').textContent = maxCombo;
   const list = getRanking();
-  const nb = document.getElementById('newBest');
-  nb.textContent = score > 0 && (!list.length || score > list[0].score) ? '🎉 1등 신기록!' : '';
+  showCongrats(list[0]);
   if (qualifies(score)) {
     entryForm.style.display = '';
     entryMsg.textContent = 'TOP 5 진입! 이름을 남겨주세요';
@@ -373,6 +457,40 @@ function end() {
   updateGoal();
   overlay.classList.add('show');
   if (qualifies(score)) nameInput.focus();
+}
+
+function showCongrats(prevTop) {
+  const el = document.getElementById('congrats');
+  el.classList.remove('show');
+  if (score <= 0 || (prevTop && score <= prevTop.score)) return;
+  if (prevTop) {
+    el.innerHTML = '<span class="big">👑 새로운 챔피언 탄생! 👑</span>';
+    const line = document.createElement('div');
+    const who = document.createElement('b');
+    who.textContent = prevTop.name;
+    line.append('기존 1등 ', who, `님(${prevTop.score}점)을`,
+      document.createElement('br'), `${score - prevTop.score}점 차이로 제쳤어요! 🎉`);
+    el.appendChild(line);
+  } else {
+    el.innerHTML = '<span class="big">🎉 첫 1등 기록! 🎉</span>이 난이도의 첫 번째 챔피언이에요!';
+  }
+  void el.offsetWidth;
+  el.classList.add('show');
+  confetti();
+}
+
+function confetti() {
+  const colors = ['#ff595e', '#ffca3a', '#8ac926', '#1982c4', '#6a4c93', '#ff8fa3'];
+  for (let i = 0; i < 120; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = colors[i % colors.length];
+    c.style.animationDuration = rand(2, 4) + 's';
+    c.style.animationDelay = rand(0, 0.8) + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 5000);
+  }
 }
 
 entryForm.addEventListener('submit', e => {
